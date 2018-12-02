@@ -1,6 +1,5 @@
 #!/bin/bash
-# Release: 0.5
-# Note: Putting it on Github for the world to see.
+# Release: 0.51
 
 ### Preferences
 
@@ -56,30 +55,30 @@ dependencies="feh xrandr find date grep dirname"
   #Exits if one of these isn't found
 dependencyChecker $dependencies
 
-ConfigVarsToBeSet="WallpaperDirectory WallpaperDirectoryRecursion"
+configVarsToBeSet="WallpaperDirectory WallpaperDirectoryRecursion"
 
   #Sets the requested vars from conf otherwise exits with error.
-setVarsFromConfig $ConfigVarsToBeSet
+setVarsFromConfig $configVarsToBeSet
 
 if [ "$WallpaperDirectoryRecursion" == "no" ] ; then recursion="-maxdepth 1"; fi #Will not recurse if this is set
 
   # Determine connected monitor count
-imageFetchCount="`xrandr --query|grep -w 'connected'|wc -l`"
+imageFetchCount="$(xrandr --query|grep -w 'connected'|wc -l)"
 
   # Get all images (Slow on HDDs and I should be punished for it)
-WallpaperList="$(find "$WallpaperDirectory" $recursion)" 
+wallpaperList="$(find "$WallpaperDirectory" $recursion)" 
 
   # Lazily shuffle and grab x from the list
-  RandomlyChosen=$(echo "$WallpaperList"| shuf -n$imageFetchCount)
+  RandomlyChosen=$(echo "$wallpaperList"| shuf -n$imageFetchCount)
 
   # Fill the $arguments variable with our arguments+pictures to use.
   # Read from each line from the randomlychosen variable and generate FEH arguments to execute together later
 fehArguments=$(while read chosenImage ; do echo -n "--bg-$bgmode" "\"$chosenImage\" " ;   done <<<"$RandomlyChosen") #It wouldn't look like this if whitespace characters didn't ruin everything.
 
   #Log for later image autiting via syslog. (E.g. nsfw pics from large online imgur albums can be searched by timestamp, and removed from rotation)
-  logger "$(basename $0) - $(date) - $fehArguments"
+logger "$(basename $0) - $(date) - $fehArguments"
 
-  #Finally, invoke fehwith our background-setting arguments and exit.
 
+  #Finally, invoke feh with our background-setting arguments and exit.
 eval feh $fehArguments
 exit 0
