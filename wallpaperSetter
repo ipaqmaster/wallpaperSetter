@@ -10,9 +10,6 @@ bgmode=fill
 
 export DISPLAY=':0' #Get display session for feh. Usually ':0'
 
-  # Always returns the script's home directory. Used for the config file of the same directory.
-  # Best to leave alone
-
 ### /Preferences
 
 
@@ -20,7 +17,6 @@ export DISPLAY=':0' #Get display session for feh. Usually ':0'
 
 function dependencyChecker {
   #Searches for tools and quits if they're not found.
-
   _dependencies="$@" #All args are checked
   for tool in $_dependencies
   do
