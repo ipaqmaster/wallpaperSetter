@@ -1,6 +1,10 @@
 # wallpaperSetter
-A local script that I realized I don't want to lose.
+A local and passive script invoked on X session starting and monitor configuration changes I've realized I don't want to lose.
 
-This script can be called at any time (I usually bind it to a global hotkey in Cinnamon) and invoking it changes your wallpapers b ased on a set directory inside the script.
+This script can be called at any time. Invoking it changes your wallpapers based on a set directory inside the script.
 
-It uses 'xrandr' to check how many monitors you have, then fetches {x} new wallpapers to display on them with 'feh'.
+I usually bind it to a global hotkey in Cinnamon or run it on graphical session start.
+
+You will need 'xrandr' and 'feh' installed for this to work on its own.
+
+It checks how many monitors you have then fetches {x} new wallpapers to display on them with 'feh'.
