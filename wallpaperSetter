@@ -1,0 +1,89 @@
+#!/bin/bash
+# Release: 0.5
+# Note: Putting it on Github for the world to see.
+
+### Preferences
+
+  #Fill or Scale images to your monitors (Preference)
+bgmode=fill
+#bgmode=scale
+
+export DISPLAY=':0' #Get display session for feh. Usually ':0'
+
+  # Always returns the script's home directory. Used for the config file of the same directory.
+  # Best to leave alone
+
+### /Preferences
+
+
+### Functions
+
+function dependencyChecker {
+  #Searches for tools and quits if they're not found.
+
+  _dependencies="$@" #All args are checked
+  for tool in $_dependencies
+  do
+    if ! which $tool > /dev/null
+      then
+        echo "Dependency software :$tool: not found in your PATH. Please install/provide it or edit in a substitute" && exit 1
+    fi
+  done
+}
+
+function setVarsFromConfig {
+  #Sets vars from config, quits if they're not found.
+  _configFile="$(dirname $(realpath $0))$scriptRoot/.$(basename $0).conf" #Too much nesting
+  _wantedVars="$@" #All args are checked
+
+  if [ ! -f $_configFile ]; then echo "Cannot find $_configFile, please create it" && exit 1; fi
+  for configOption in $_wantedVars
+   do
+      #If not found, warn and exit with an error
+      if var=$(grep -E "^$configOption=.*$" $_configFile)
+      then
+        eval $var #set the variable.
+      else
+        echo "Cannot find variable :$configOption: in $_configFile, please set it before running"
+	exit 1
+      fi
+  done
+
+}
+
+### /Functions
+
+### Script
+
+dependencies="feh xrandr find date grep dirname"
+
+  #Exits if one of these isn't found
+dependencyChecker $dependencies
+
+ConfigVarsToBeSet="WallpaperDirectory WallpaperDirectoryRecursion"
+
+  #Sets the requested vars from conf otherwise exits with error.
+setVarsFromConfig $ConfigVarsToBeSet
+
+if [ "$WallpaperDirectoryRecursion" == "no" ] ; then recursion="-maxdepth 1"; fi #Will not recurse if this is set
+
+  # Determine connected monitor count
+imageFetchCount="`xrandr --query|grep -w 'connected'|wc -l`"
+
+  # Get all images (Slow on HDDs and I should be punished for it)
+WallpaperList="$(find "$WallpaperDirectory" $recursion)" 
+
+  # Lazily shuffle and grab x from the list
+  RandomlyChosen=$(echo "$WallpaperList"| shuf -n$imageFetchCount)
+
+  # Fill the $arguments variable with our arguments+pictures to use.
+  # Read from each line from the randomlychosen variable and generate FEH arguments to execute together later
+fehArguments=$(while read chosenImage ; do echo -n "--bg-$bgmode" "\"$chosenImage\" " ;   done <<<"$RandomlyChosen") #It wouldn't look like this if whitespace characters didn't ruin everything.
+
+  #Log for later image autiting via syslog. (E.g. nsfw pics from large online imgur albums can be searched by timestamp, and removed from rotation)
+  logger "$(basename $0) - $(date) - $fehArguments"
+
+  #Finally, invoke fehwith our background-setting arguments and exit.
+
+eval feh $fehArguments
+exit 0
