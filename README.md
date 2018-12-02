@@ -1,10 +1,9 @@
-# wallpaperSetter
-A local and passive script invoked on X session starting and monitor configuration changes I've realized I don't want to lose.
+wallpaperSetter. Made for Cinnamon on Linux Mint but could work elsewhere when given the tools.
 
-This script can be called at any time. Invoking it changes your wallpapers based on a set directory inside the script.
+---------------------------------------------------------------
+A passive script which changes wallpapers based on the configured wallpaper directory. I've realized I don't want to lose it.
 
-I usually bind it to a global hotkey in Cinnamon or run it on graphical session start.
+This script can be called at any time by human or cron to keep things fresh. Invoking it changes your wallpapers based on a configurable variable.
 
-You will need 'xrandr' and 'feh' installed for this to work on its own.
-
-It checks how many monitors you have then fetches {x} new wallpapers to display on them with 'feh'.
+I have this cronjob to run it between 9-5pm quietly:
+  0 9-17 * * 1-5 /path/to/wallpaperSetter >/dev/null 2>&1
