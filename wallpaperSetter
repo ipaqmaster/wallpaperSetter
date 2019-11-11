@@ -27,13 +27,11 @@ function dependencyChecker {
   _dependencies="$@"
   for program in $_dependencies
   do
-    if ! which $program > /dev/null 2>&1
+    if ! which $program > /dev/null
       then
-        missing="$missing$program "
+        echo "Dependency program :$program: not found in your PATH. Please install/provide it or edit in a substitute" && exit 1
     fi
   done
-
-  if [ ! -z "$missing" ]; then echo "Dependency programs :$missing: not found in your PATH. Please provide the path, install their packages or provide a substitute." && exit 1; fi
 }
 
 function readConfig {
@@ -141,7 +139,7 @@ done
 ### GO
 
   #Check deps.
-dependencyChecker "date dirname feh find grep identify logger xrandr 1 2 3 4 a b c"
+dependencyChecker "date dirname feh find grep identify logger xrandr"
 
   # Read config for these args.
 readConfig "WPDirectory WPRecursion bgmode preferNativeRes dbStaleTime"
