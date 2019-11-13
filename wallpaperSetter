@@ -10,7 +10,7 @@ _dbTable="$(basename $0)"
 
 function log { 
     # 'logger' call with 'echo' session interactive
-  if [ ! -z $- ] ; then echo ${1} ; fi
+  if [ ! -z $- ] ; then echo ${1} >&2 ; fi
   logger "$0 ${1}"
 }
 
@@ -87,7 +87,7 @@ function genDb {
   if [ "$WPRecursion" == "no" ] ; then recurseFlag="-maxdepth 1"; fi
 
     # Find, identify dimensions and format findings as INSERT queries.
-  allWallpapers="$(find "$WPDirectory" $recurseFlag -type f -exec echo -n \'{}\', \; -exec identify -format "'%wx%h'\n" {} \;|while read line; do echo "insert into $_dbTable values($line);"; done)"
+  allWallpapers="$(find "$WPDirectory" $recurseFlag -type f -exec echo -n \'{}\', \; -exec identify -format "'%wx%h'\n" {} 2>/dev/null \;|while read line; do echo "insert into $_dbTable values($line);"; done)"
 
     # Remove any old (Probably an unsafe idea)
   rm -f $_dbFile
@@ -110,21 +110,24 @@ function dbPrep {
 }
 
 function fetchRandomImages {
-  randomImages="$(sqlite3 $_dbFile "select path from wallpaperSetter $resQuery order by random() limit $imageFetchCount;")"
-  
-  if [ "$(wc -l <<<"${randomImages}")" -lt "$imageFetchCount" ]
+
+  randomimages="$(sqlite3 $_dbFile "select path from wallpaperSetter $resQuery order by random() limit $imageFetchCount;")"
+
+  if [ "$(wc -l <<<"${randomimages}")" -lt "$imageFetchCount" ]
   then
-  log "Not enough $resQuery images to satisfy the monitors. Accepting any resolution"
-  randomImages="$(sqlite3 $_dbFile "select path from wallpaperSetter $resQuery order by random() limit $imageFetchCount;")"
-    if [ "$(wc -l <<<"${randomImages}")" -eq "0" ]; then log "Couldn't find any images? Exiting in panic" ; exit 1; fi
+    logDebug "Not enough $resQuery results for these monitors. Accepting any resolution"
+    randomimages="$(sqlite3 $_dbFile "select path from wallpaperSetter order by random() limit $imageFetchCount;")"
+    if [ "$(wc -l <<<"${randomimages}")" -lt "$imageFetchCount" ]; then log "Couldn't find any images? Regenerating and exiting in panic" ; genDb ; exit 1; fi
   fi
 
-  while read randomImage #Check if they exist
+  echo "$randomimages" | while read image # Check if they exist
   do
-    if [ ! -f "$randomImage" ]; then log "Image in db not found, regenerating..." ;genDb; fi
-    randomImages="$(sqlite3 $_dbFile "select path from wallpaperSetter $resQuery order by random() limit $imageFetchCount;")" #Should make this a function
-  done <<<$"$randomImages"
- 
+    logDebug "testing whether :$image: exists."
+    if [ ! -f "$image" ]; then log "Db returned non-existent image, regenerating..." ;genDb; fi
+  done
+
+  echo "${randomimages}"
+
 }
 
 function help {
@@ -184,11 +187,9 @@ then
   resQuery="where res = '$primaryRes'"
 fi
 
-fetchRandomImages
+randomImages="$(fetchRandomImages)"
 
- 
-
-logDebug "$randomImages"
+logDebug "randomImages = $randomImages"
 
   # Build arguments for 'feh'. Supports whitespace filenames.
 fehArguments=$(while read chosenImage ; do echo -n "--bg-$bgmode" "\"$chosenImage\" " ;   done <<<"$randomImages")
