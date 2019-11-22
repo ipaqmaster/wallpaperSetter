@@ -87,7 +87,7 @@ function genDb {
   if [ "$WPRecursion" == "no" ] ; then recurseFlag="-maxdepth 1"; fi
 
     # Find, identify dimensions and format findings as INSERT queries.
-  allWallpapers="$(find "$WPDirectory" $recurseFlag -type f -exec echo -n \'{}\', \; -exec identify -format "'%wx%h'\n" {} 2>/dev/null \;|while read line; do echo "insert into $_dbTable values($line);"; done)"
+  allWallpapers="$(find "$WPDirectory" $recurseFlag -type f -exec echo -n \"{}\", \; -exec identify -format '"%wx%h"\n' {} 2>/dev/null \;|while read line; do echo "insert into $_dbTable values($line);"; done)"
   logDebug "$allWallpapers"
 
     # Remove any old (Probably an unsafe idea)
