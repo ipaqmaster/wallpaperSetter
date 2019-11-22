@@ -88,6 +88,7 @@ function genDb {
 
     # Find, identify dimensions and format findings as INSERT queries.
   allWallpapers="$(find "$WPDirectory" $recurseFlag -type f -exec echo -n \'{}\', \; -exec identify -format "'%wx%h'\n" {} 2>/dev/null \;|while read line; do echo "insert into $_dbTable values($line);"; done)"
+  logDebug "$allWallpapers"
 
     # Remove any old (Probably an unsafe idea)
   rm -f $_dbFile
@@ -111,7 +112,7 @@ function dbPrep {
 
 function fetchRandomImages {
 
-  randomimages="$(sqlite3 $_dbFile "select path from wallpaperSetter $resQuery order by random() limit $imageFetchCount;")"
+  randomimages="$(sqlite3 $_dbFile "select path from wallpaperSetter $resQuery order by newid() limit $imageFetchCount;")"
 
   if [ "$(wc -l <<<"${randomimages}")" -lt "$imageFetchCount" ]
   then
