@@ -91,11 +91,9 @@ function genDb {
   allWallpapers="$(find "$WPDirectory" $recurseFlag -type f -exec echo -n \"{}\", \; -exec identify -format '"%wx%h"\n' {} 2>/dev/null \;|while read line; do echo "insert into $_dbTable values($line);"; done)"
   logDebug "$allWallpapers"
 
-    # Remove any old (Probably an unsafe idea)
-  rm -f $_dbFile
-
     # Make the new file, table and populate it with the filename and dimensions.
   sqlite3 $_dbFile <<EOF
+DROP TABLE $_dbTable;
 CREATE TABLE $_dbTable ( path varchar(255), res varchar(255) );
 $allWallpapers
 EOF
