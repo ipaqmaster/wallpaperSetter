@@ -1,24 +1,24 @@
 #!/bin/bash
-VERSION=0.6
+VERSION=0.61
 
   # Fallback $DISPLAY variable to :0.
 if [ -z $DISPLAY ]; then export DISPLAY=':0'; fi
 
+_name="$(basename $0)"
 _configFile="$(dirname $(realpath $0))/$(basename $0).conf"
 _dbFile="$(dirname $(realpath $0))/$(basename $0).db"
 _dbTable="$(basename $0)"
 
-function log { 
-    # 'logger' call with 'echo' session interactive
-  if [ ! -z $- ] ; then echo ${1} >&2 ; fi
-  logger "$0 ${1}"
-}
+function log {
+  if [[ $- =~ 'i' ]]; then logcommand=echo; else logcommand=logger; fi
 
-function logDebug() {
-    # Same as above but only if DEBUG=1
-  if [ "$DEBUG" == "1" ]
+  if [ "$DEBUG" == "1" ] && [[ "$1" =~ "DEBUG" ]]
   then
-    log "$@"
+    echo "$_name - $@"
+    logger "$_name - $@"
+  elif [[ ! "$1" =~ "DEBUG" ]]
+  then
+    $logcommand "$_name - $@"
   fi
 }
 
@@ -89,7 +89,7 @@ function genDb {
 
     # Find, identify dimensions and format findings as INSERT queries.
   allWallpapers="$(find "$WPDirectory" $recurseFlag -type f -exec echo -n \"{}\", \; -exec identify -format '"%wx%h"\n' {} 2>/dev/null \;|while read line; do echo "insert into $_dbTable values($line);"; done)"
-  logDebug "$allWallpapers"
+  log "DEBUG: $allWallpapers"
 
     # Make the new file, table and populate it with the filename and dimensions.
   sqlite3 $_dbFile <<EOF
@@ -115,14 +115,14 @@ function fetchRandomImages {
 
   if [ "$(wc -l <<<"${randomimages}")" -lt "$imageFetchCount" ]
   then
-    logDebug "Not enough $resQuery results for these monitors. Accepting any resolution"
+    log "DEBUG: Not enough $resQuery results for these monitors. Accepting any resolution"
     randomimages="$(sqlite3 $_dbFile "select path from wallpaperSetter order by random() limit $imageFetchCount;")"
     if [ "$(wc -l <<<"${randomimages}")" -lt "$imageFetchCount" ]; then log "Couldn't find any images? Regenerating and exiting in panic" ; genDb ; exit 1; fi
   fi
 
   echo "$randomimages" | while read image # Check if they exist
   do
-    logDebug "testing whether :$image: exists."
+    log "DEBUG: testing whether :$image: exists."
     if [ ! -f "$image" ]; then log "Db returned non-existent image, regenerating..." ;genDb; fi
   done
 
@@ -189,13 +189,13 @@ fi
 
 randomImages="$(fetchRandomImages)"
 
-logDebug "randomImages = $randomImages"
+log "DEBUG: randomImages = $randomImages"
 
   # Build arguments for 'feh'. Supports whitespace filenames.
 fehArguments=$(while read chosenImage ; do echo -n "--bg-$bgmode" "\"$chosenImage\" " ;   done <<<"$randomImages")
 
   #Log so people can check what was picked later.
-log "$(basename $0) - $(date) - feh $fehArguments"
+log "$(date) - feh $fehArguments"
 
 
   #Eval our command.
