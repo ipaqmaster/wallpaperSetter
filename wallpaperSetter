@@ -113,11 +113,11 @@ function fetchRandomImages {
 
   randomimages="$(sqlite3 $_dbFile "select path from wallpaperSetter $resQuery order by random() limit $imageFetchCount;")"
 
-  if [ "$(wc -l <<<"${randomimages}")" -lt "$imageFetchCount" ]
+  if [ "$(grep -v '^$' <<< "$randomimages" |wc -l)" -lt "$imageFetchCount" ]
   then
     log "DEBUG: Not enough $resQuery results for these monitors. Accepting any resolution"
     randomimages="$(sqlite3 $_dbFile "select path from wallpaperSetter order by random() limit $imageFetchCount;")"
-    if [ "$(wc -l <<<"${randomimages}")" -lt "$imageFetchCount" ]; then log "Couldn't find any images? Regenerating and exiting in panic" ; genDb ; exit 1; fi
+    if [ "$(grep -v '^$' <<< $randomimages |wc -l)" -lt "$imageFetchCount" ]; then log "DEBUG: Couldn't find any images? Regenerating and exiting in panic" ; genDb ; exit 1; fi
   fi
 
   echo "$randomimages" | while read image # Check if they exist
