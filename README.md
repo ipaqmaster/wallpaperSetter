@@ -26,14 +26,18 @@ Set random backgrounds automatically from $HOME/Wallpapers (Or another configure
 ## Invoking it and Args
 
 `./wallpaperSetter`
+
    Runs. By default tries to pick images that match your native resolution first. If none are found it'll just pick anything.
    (Working directory does not matter)
    
 `-regendb/-regen`
+
    Force refresh the sqlite3 db file.
 
 `-help`
+
    Spills the beans
 
 `-debug`
+
    Talks a little more for problem solving purposes
