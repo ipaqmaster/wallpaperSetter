@@ -51,7 +51,7 @@ bgmode=fill
 preferNativeRes=yes
 
   # Regenerate the DB if older than this many seconds
-dbStaleTime="86400" #A day
+dbStaleTime="86400" # A day
 EOF
 fi
 
@@ -84,8 +84,8 @@ function genDb {
 
     # Make the new file, table and populate it with the filename and dimensions.
   sqlite3 $_dbFile <<EOF
-DROP TABLE $_dbTable;
-CREATE TABLE $_dbTable ( path varchar(255), res varchar(255) );
+    DROP TABLE IF EXISTS $_dbTable;
+    CREATE TABLE $_dbTable ( path varchar(255), res varchar(255) );
 $allWallpapers
 EOF
 }
