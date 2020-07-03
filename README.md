@@ -7,6 +7,7 @@ Made for the Cinnamon desktop environment though I'm sure other window managers 
 # Usage
 
 ## Dependencies
+* awk     (gawk)
 * date    (coreutils)
 * dirname (coreutils)
 * feh
