@@ -1,10 +1,30 @@
 # About
 
-A wallpaper script written in Bash. Reads a config file for a Wallpaper directory and uses SQLite to keep track of wallpapers and their resolutions.
+A wallpaper script written in Bash.
 
-Made for the Cinnamon desktop environment though I'm sure other window managers would work too.
+Reads a config file generated on first run.
+Searches for wallpapers in a directory and makes an sqlite3 database to keep track of their paths and resolution. Updates if over a day old on next run or when manually requested via argument. (Or if it discovers a wallpaper went missing)
+
+Made for the Cinnamon desktop environment though I'm sure most window managers would be fine.
 
 # Usage
+
+`./wallpaperSetter`
+
+   Runs. Tries to pick native resolution wallpapers or a span wallpaper for all monitors by default. If no match it tries all.
+
+`-help`
+
+   Spills the beans
+
+`-regendb/-regen`
+
+   Regenerates the image database for your configured wallpaper dir.
+
+`-debug`
+
+   Makes the script more talkative.
+
 
 ## Dependencies
 * awk     (gawk)
@@ -14,30 +34,3 @@ Made for the Cinnamon desktop environment though I'm sure other window managers 
 * imagemagick
 * logger  (util-linux)
 * xrandr  (xorg-xrandr)
-
-## What it does
-On first run creates wallpaperSetter.conf. Also scans the wallpaper directory and stores its findings in wallpaperSetter.db. Regenerates this if the database age is either over 24 hours or it rolls an image that isn't found on disk anymore.
-
-The DB holds the relative file path and the resolution of the file (Thanks ImageMagick)
-
----------------------------------------------------------------
-
-Set random backgrounds automatically from $HOME/Wallpapers (Or another configured directory)
-## Invoking it and Args
-
-`./wallpaperSetter`
-
-   Runs. By default tries to pick images that match your native resolution first. If none are found it'll just pick anything.
-   (Working directory does not matter)
-   
-`-regendb/-regen`
-
-   Force refresh the sqlite3 db file.
-
-`-help`
-
-   Spills the beans
-
-`-debug`
-
-   Talks a little more for problem solving purposes

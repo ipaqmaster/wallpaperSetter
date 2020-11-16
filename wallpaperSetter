@@ -1,5 +1,4 @@
 #!/bin/bash
-VERSION=0.61
 
   # Fallback $DISPLAY variable to :0.
 if [ -z $DISPLAY ]; then export DISPLAY=':0'; fi
@@ -10,19 +9,180 @@ _configFile="$_scriptRoot/$(basename $0).conf"
 _dbFile="$_scriptRoot/$(basename $0).db"
 _dbTable="$(basename $0)"
 
-source $_scriptRoot/functions
+#     _                
+#  __| | ___ _ __  ___ 
+# / _` |/ _ \ '_ \/ __|
+#| (_| |  __/ |_) \__ \
+# \__,_|\___| .__/|___/
+#           |_|        
 
-### Read any args
+for dependency in awk date dirname feh find grep identify logger xrandr
+do
+  which $dependency >/dev/null 2>&1 || missing="$missing $dependency "
+done
+if [[ ! -z "$missing" ]]
+then
+  echo -ne "Couldn't find these programs:$missing\nPlease install the relevant packages or check your \$PATH."
+  exit 1
+fi
+
+
+
+# _____                 _   _                 
+#|  ___|   _ _ __   ___| |_(_) ___  _ __  ___ 
+#| |_ | | | | '_ \ / __| __| |/ _ \| '_ \/ __|
+#|  _|| |_| | | | | (__| |_| | (_) | | | \__ \
+#|_|   \__,_|_| |_|\___|\__|_|\___/|_| |_|___/
+#
+
+
+function log {
+  if [ -t 1 ]; then logcommand=echo; else logcommand=logger && prefix="$_name - "; fi # use echo if stdout is a terminal
+
+  if [ "$DEBUG" == "1" ] && [[ "$1" =~ "DEBUG" ]]
+  then
+    echo "${prefix}${@}"
+    logger "${prefix}${@}"
+  elif [[ ! "$1" =~ "DEBUG" ]]
+  then
+    $logcommand "${prefix}${@}"
+  fi
+}
+
+function readConfig {
+  #Generate the config if missing or asked
+if [ ! -f $_configFile ] || [ "$1" == 'recreate' ]
+then
+  cat > $_configFile << EOF
+# This conf can be deleted at any time for a regenerated default copy.
+}
+
+WPDirectory="\$HOME/Wallpapers/"
+WPRecursion="no"
+
+  # Fill or Scale images?
+bgmode=fill
+#bgmode=scale
+
+  # Try for native res?
+tryNativeRes=yes
+  # Try for spannable wallpapers? (Multi monitor)
+trySpanWallpapers=yes
+
+  # Percentage chance for span? (If both set to yes)
+spanWallpaperPercentChance=10
+
+  # Regenerate the DB if older than this many seconds
+dbStaleTime="86400" # A day
+EOF
+fi
+if [ "$1" == 'recreate' ] ; then exit ; fi
+    # Sets vars from config, quits if they're not found.
+  _wantedVars="$@" #What we search for
+
+  for configOption in $_wantedVars
+   do
+      #If not found, warn and die
+      if var=$(grep -E "^$configOption=.+$" $_configFile)
+      then
+        eval $var #Set it
+      else
+        echo "Cannot find var :$configOption: in $_configFile. Regenerating the config file for next run." ; readConfig recreate
+	exit 1
+      fi
+  done
+}
+
+function genDb {
+  if [ $REGEN ]
+  then
+    log "Regenerating database. One moment.."
+  else
+    log "Generating database. One moment.."
+  fi
+
+    # Disable recursion if 'no' specified.
+  if [ "$WPRecursion" == "no" ] ; then recurseFlag="-maxdepth 1"; fi
+
+    # Find, identify dimensions and format findings as INSERT queries.
+  allWallpapers="$(find "$WPDirectory" $recurseFlag -type f -exec echo -n \"{}\", \; -exec identify -format '"%wx%h"\n' {} 2>/dev/null \;|while read line; do echo "insert into $_dbTable values($line);"; done)"
+  log "DEBUG: $allWallpapers"
+
+    # Make the new file, table and populate it with the filename and dimensions.
+  sqlite3 $_dbFile <<EOF
+    DROP TABLE IF EXISTS $_dbTable;
+    CREATE TABLE $_dbTable ( path varchar(255), res varchar(255) );
+$allWallpapers
+EOF
+}
+
+function dbPrep {
+  if [ ! -f $_dbFile ]; then genDb; fi #If missing, generate.
+
+  if [ "$(date -r $_dbFile +%s)" -lt "$(((`date +%s` - $dbStaleTime)))" ]
+  then
+    log "Database is over $_dbStaleTime seconds old, regenerating to catch new changes"
+    genDb #Regen the database
+  fi
+}
+
+function queryDb {
+  query="$1"
+  if [ -f $_dbFile ]
+  then
+    sqlite3 "$_dbFile" "$query"
+  else
+    log "DB File not found somehow"
+    exit 1
+  fi
+}
+
+function fetchRandomImages {
+
+  result="$(queryDb "select path from $_dbTable $resQuery order by random() limit $imageFetchCount;")"
+
+  if [ "$(grep -v '^$' <<< "$result" |wc -l)" -lt "$imageFetchCount" ]
+  then
+    log "DEBUG: Not enough $resQuery results for these monitors. Accepting any resolution"
+    result="$(queryDb "select path from $_dbTable order by random() limit $imageFetchCount;")"
+    if [ "$(grep -v '^$' <<< $result |wc -l)" -lt "$imageFetchCount" ]; then log "DEBUG: Couldn't find any images? Regenerating and exiting in panic" ; genDb ; exit 1; fi
+  fi
+
+  echo "$result" | while read image # Check if they exist
+  do
+    log "DEBUG: testing whether :$image: exists."
+    if [ ! -f "$image" ]; then log "Db returned non-existent image, regenerating..." ;genDb; fi
+  done
+
+  echo "${result}"
+}
+
+function help {
+  echo "Set random backgrounds automatically from $HOME/Wallpapers (Or another configured directory!)"
+  echo "Arguments for $0:"
+  echo -e "\t-help\t\tOutputs help."
+  echo -e "\t-regendb/-regen\tRegenerates the image database for your configured wallpaper dir."
+  echo -e "\t-debug\t\tMakes the script more talkative."
+  exit 1
+}
+
+
+#    _                  
+#   / \   _ __ __ _ ___ 
+#  / _ \ | '__/ _` / __|
+# / ___ \| | | (_| \__ \
+#/_/   \_\_|  \__, |___/
+#             |___/     
 
 while [ $# -gt 0 ]
 do
-  case "$1" in
+  case "$(tr '[:upper:]' '[:lower:]'<<<$1)" in
     -regendb|-regen)
-	REGEN="1"
+        REGEN="1"
         shift
     ;;
-     -verbose|-debug)
-        VERBOSE="1" && DEBUG="1"
+     -debug)
+        DEBUG="1"
     ;;
      help|-help)
         help
@@ -34,37 +194,50 @@ do
     shift
 done
 
+# ____
+#|  _ \ _   _ _ __
+#| |_) | | | | '_ \
+#|  _ <| |_| | | | |
+#|_| \_\\__,_|_| |_|
 
-### GO
-
-dependencyChecker "awk date dirname feh find grep identify logger xrandr"
-
-readConfig "WPDirectory WPRecursion bgmode preferNativeRes dbStaleTime"
+readConfig "WPDirectory WPRecursion bgmode tryNativeRes trySpanWallpapers dbStaleTime spanWallpaperPercentChance"
 
   # Determine active display count.
-imageFetchCount="$(xrandr --query|grep -w 'connected'|wc -l)"
+imageFetchCount="$(xrandr --listactivemonitors | grep -oP '(?<=Monitors:\ )[0-9]+')"
+combinedRes="$(xrandr |grep -Po '(?<=current\ )[0-9]+ x [0-9]+' | tr -d ' ')"
+primaryRes="$(xrandr | grep \* | awk '{print $1}'|head -n1)"
 
   # Regen db if requested. Do regular stale check otherwise.
 if [ ! -z $REGEN ]; then genDb ; else dbPrep ; fi
 
-  # Select x random images from the db based on active displays.
-if [ "$preferNativeRes" == "yes" ]
+
+  # Select x random images from the db based on active displays or a single span bg.
+if [ "$tryNativeRes" == 'yes' ] && [ "$trySpanWallpapers" == 'yes' ]
 then
-  primaryRes="$(xrandr | grep \* | awk '{print $1}'|head -n1)"
-  resQuery="where res = '$primaryRes'"
+    #Diceroll for which we go with
+  diceResult="$(($RANDOM % 100))"
+  if [ $diceResult -le $spanWallpaperPercentChance ]; then searchRes=$combinedRes && imageFetchCount=1 ; else searchRes=$primaryRes ; fi
+elif [ "$tryNativeRes" == 'yes' ] ;      then searchRes=$primaryRes ;
+elif [ "$trySpanWallpapers" == 'yes' ] ; then searchRes=$combinedRes 
 fi
 
+resQuery="where res = '$searchRes'"
 randomImages="$(fetchRandomImages)"
 
 log "DEBUG: randomImages = $randomImages"
 
   # Build arguments for 'feh'. Supports whitespace filenames.
-fehArguments=$(while read chosenImage ; do echo -n "--bg-$bgmode" "\"$chosenImage\" " ;   done <<<"$randomImages")
+if [ "$searchRes" == "$combinedRes" ]
+then
+  fehArguments="--bg-tile \"$randomImages\"" # --bg-tile works for multi-monitor wallpapers.
+else
+  fehArguments=$(while read chosenImage ; do echo -n "--bg-$bgmode" "\"$chosenImage\" " ;   done <<<"$randomImages")
+fi
 
   # Log what's been picked for later checking.
-log "$(date) - feh $fehArguments"
+log "$(date) Command: feh $fehArguments"
 
 
   #Eval the final command.
-eval feh $fehArguments
-if [ $? -ne '0' ]; then exit 1; else exit 0; fi
+eval feh $fehArguments 2>&1|head -n1
+exit $?
