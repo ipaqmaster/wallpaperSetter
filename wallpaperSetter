@@ -93,6 +93,17 @@ if [ "$1" == 'recreate' ] ; then exit ; fi
   done
 }
 
+function showDb {
+  if [ -f "$_dbFile" ]
+  then
+    log "Showing current DB contents then exiting"
+    sqlite3 $_dbFile 'select res,path from wallpaperSetter;' | sed 's/|/\t/g'
+  else
+    log "DB file not found ($_dbFile), one must be generated first."
+  fi
+  exit 0
+}
+
 function genDb {
   if [ $REGEN ]
   then
@@ -102,12 +113,19 @@ function genDb {
   fi
 
     # Disable recursion if 'no' specified.
-  if [ "$WPRecursion" == "no" ] ; then recurseFlag="-maxdepth 1"; fi
+  set -o noglob
+  if [ "$WPRecursion" == "no" ]
+  then
+    recursionFlags="-maxdepth 1"
+  elif [ "$WPRecursion" == "yes" ]
+  then
+    recursionFlags="-not -path *disabled*"
+  fi
 
     # Find, identify dimensions and format findings as INSERT queries.
-  allWallpapers="$(find "$WPDirectory" $recurseFlag -type f -exec echo -n \"{}\", \; -exec identify -format '"%wx%h"\n' {} 2>/dev/null \;|while read line; do echo "insert into $_dbTable values($line);"; done)"
+  allWallpapers="$(find "${WPDirectory}" ${recursionFlags} -type f -exec echo -n \"{}\", \; -exec identify -format '"%wx%h"\n' "{}" 2>/dev/null \;|while read line; do echo "insert into $_dbTable values($line);"; done)"
+  set +o noglob
   log "DEBUG: $allWallpapers"
-
     # Make the new file, table and populate it with the filename and dimensions.
   sqlite3 $_dbFile <<EOF
     DROP TABLE IF EXISTS $_dbTable;
@@ -162,6 +180,7 @@ function help {
   echo "Arguments for $0:"
   echo -e "\t-help\t\tOutputs help."
   echo -e "\t-regendb/-regen\tRegenerates the image database for your configured wallpaper dir."
+  echo -e "\t-showdb\tSpits out every image entry in our current DB."
   echo -e "\t-debug\t\tMakes the script more talkative."
   exit 1
 }
@@ -169,7 +188,7 @@ function help {
 
 #    _                  
 #   / \   _ __ __ _ ___ 
-#  / _ \ | '__/ _` / __|
+#  / _ \ | '__/ _\ / __|
 # / ___ \| | | (_| \__ \
 #/_/   \_\_|  \__, |___/
 #             |___/     
@@ -177,9 +196,11 @@ function help {
 while [ $# -gt 0 ]
 do
   case "$(tr '[:upper:]' '[:lower:]'<<<$1)" in
+    -showdb)
+        SHOWDB="1"
+    ;;
     -regendb|-regen)
         REGEN="1"
-        shift
     ;;
      -debug)
         DEBUG="1"
@@ -206,6 +227,10 @@ readConfig "WPDirectory WPRecursion bgmode tryNativeRes trySpanWallpapers dbStal
 imageFetchCount="$(xrandr --listactivemonitors | grep -oP '(?<=Monitors:\ )[0-9]+')"
 combinedRes="$(xrandr |grep -Po '(?<=current\ )[0-9]+ x [0-9]+' | tr -d ' ')"
 primaryRes="$(xrandr | grep \* | awk '{print $1}'|head -n1)"
+
+
+  # Show current db but exit early afterwards.
+if [ ! -z $SHOWDB ]; then showDb ; fi
 
   # Regen db if requested. Do regular stale check otherwise.
 if [ ! -z $REGEN ]; then genDb ; else dbPrep ; fi
