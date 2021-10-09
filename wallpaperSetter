@@ -186,7 +186,7 @@ function queryDb {
 
 function fetchRandomImages {
 
-  readarray -t queryResults <<< $(queryDb "select path from $_dbTable where res = \'$searchRes\' order by random() limit $imageFetchCount;")
+  readarray -t queryResults <<< $(queryDb "select path from $_dbTable where res = '$searchRes' order by random() limit $imageFetchCount;")
 
   if [ ${#queryResults[@]} -lt $imageFetchCount ] || [ -z "${queryResults[0]}" ] # Check total results aren't too short and first entry isn't blank.
   then
