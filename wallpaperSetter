@@ -97,7 +97,7 @@ function showDb {
   if [ -f "$_dbFile" ]
   then
     log "Showing current DB contents then exiting"
-    sqlite3 $_dbFile "select * from $_dbTable;" | sed 's/|/\t/g'
+    queryDb "select * from $_dbTable;" | sed 's/|/\t/g'
   else
     log "DB file not found ($_dbFile), one must be generated first."
   fi
@@ -134,10 +134,10 @@ function genDb {
       unset checksum ; checksum=$(sha1sum "$wallpaperFile" | awk '{ print $1 }')
 
       # Check if we've already scanned this one before building an insert query for it.
-    pathCheckresult="$(sqlite3 $_dbFile <<< "select path from $_dbTable where path = '$wallpaperFile';" | wc -l)"
+    pathCheckresult="$(queryDb "select path from $_dbTable where path = '$wallpaperFile';" | wc -l)"
     if [ $pathCheckresult -gt 0 ]
     then
-      checksumCheckresult=$(sqlite3 $_dbFile <<< "select checksum from $_dbTable where path = '$wallpaperFile' and checksum = '$checksum';" | wc -l)
+      checksumCheckresult=$(queryDb "select checksum from $_dbTable where path = '$wallpaperFile' and checksum = '$checksum';" | wc -l)
       if [ $checksumCheckresult -gt 0 ]
       then
         log "DEBUG: Checksum still matches, skipping: $wallpaperFile."
@@ -153,13 +153,11 @@ function genDb {
     done <<< $allWallpapers
 
     # Make the new file, table and populate it with the filename and dimensions.
-  sqlite3 $_dbFile <<EOF
-  CREATE TABLE if not exists $_dbTable ( path varchar(255), res varchar(255), profile varchar(6), checksum varchar(40), UNIQUE(path) );
-EOF
+  queryDb "CREATE TABLE if not exists $_dbTable ( path varchar(255), res varchar(255), profile varchar(6), checksum varchar(40), UNIQUE(path) );"
 
   for line in "${sql[@]}"
   do
-    echo "$line" | sqlite3 $_dbFile
+    queryDb "$line"
   done
 }
 
