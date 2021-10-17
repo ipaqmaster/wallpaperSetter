@@ -105,12 +105,16 @@ function showDb {
 }
 
 function genDb {
+
   if [ $REGEN ]
   then
     log "Regenerating database. One moment.."
   else
     log "Generating database. One moment.."
   fi
+
+    # Create our table (And file automatically) if not present and populate it with our data.
+  queryDb "CREATE TABLE if not exists $_dbTable ( path varchar(255), res varchar(255), profile varchar(6), checksum varchar(40), UNIQUE(path) );"
 
     # Disable recursion if 'no' specified.
   set -o noglob
@@ -152,8 +156,6 @@ function genDb {
     sql+=("insert or replace into $_dbTable values(\"$wallpaperFile\",\"$wallpaperDims\",\"$colorProfile\", \"$checksum\");")
     done <<< $allWallpapers
 
-    # Make the new file, table and populate it with the filename and dimensions.
-  queryDb "CREATE TABLE if not exists $_dbTable ( path varchar(255), res varchar(255), profile varchar(6), checksum varchar(40), UNIQUE(path) );"
 
   for line in "${sql[@]}"
   do
@@ -166,18 +168,18 @@ function dbPrep {
 
   if [ "$(date -r $_dbFile +%s)" -lt "$(((`date +%s` - $dbStaleTime)))" ]
   then
-    log "Database is over $_dbStaleTime seconds old, regenerating to catch new changes"
+    log "Database is over $dbStaleTime seconds old, regenerating to catch new changes"
     genDb #Regen the database
   fi
 }
 
 function queryDb {
   query="$1"
-  if [ -f $_dbFile ]
+  if [ -f $_dbFile ] || [[ "$query" == *"CREATE"* ]]
   then
     sqlite3 "$_dbFile" "$query"
   else
-    log "DB File not found somehow"
+    log "queryDb function: DB File not found. Path: $_dbFile"
     exit 1
   fi
 }
