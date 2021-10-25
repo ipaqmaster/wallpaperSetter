@@ -115,6 +115,7 @@ function genDb {
 
     # Create our table (And file automatically) if not present and populate it with our data.
   queryDb "CREATE TABLE if not exists $_dbTable ( path varchar(255), res varchar(255), profile varchar(6), checksum varchar(40), UNIQUE(path) );"
+  touch "$_dbFile"
 
     # Disable recursion if 'no' specified.
   set -o noglob
