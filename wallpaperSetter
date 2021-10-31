@@ -117,10 +117,11 @@ function genDb {
 
   log "Working on database. One moment.."
 
-for row in ${!_dbStructure[@]}
+  for column in ${!_dbStructure[@]}
   do
-    tableQuery+=$(echo -n "$row ${_dbStructure[$row]}, ")
+    tableQuery+=$(echo -n "$column ${_dbStructure[$column]}, ")
   done
+
   tableQuery+="$_dbUnique"
 
     # Always start by trying to create the table in case missing or brand new db.
@@ -142,7 +143,15 @@ for row in ${!_dbStructure[@]}
   do
     if [[ "${_dbStructure[$expectedColumn]}" != "${existingTables[$expectedColumn]}" ]] # Quick hack check if it's there plus the correct datatype.
     then
-      log "Database missing the :$expectedColumn: column. Adding now for future reindexing."
+        # If column missing, add it. If present but wrong, drop first.
+      if [ ! -z "${existingTables[$expectedColumn]}" ] 
+      then
+        log "Database column :$expectedColumn: incorrect or old datatype. Recreating it for future."
+        queryDb "alter table $_dbTable drop $expectedColumn"
+      else
+        log "Database column :$expectedColumn: missing. Adding now for future reindexing."
+      fi
+
       queryDb "alter table $_dbTable add $expectedColumn ${_dbStructure[$expectedColumn]}"
     fi 
   done
@@ -161,8 +170,17 @@ for row in ${!_dbStructure[@]}
   allWallpapers="$(find "${WPDirectory}" ${recursionFlags} -type f)"
   allCount=$(wc -l <<< $allWallpapers)
 
-  echo -e "Indexing now. $allCount images found."
+  log "Indexing now. $allCount images found in $WPDirectory."
+  
+    # Note down all wallpapers we already know about.
+  while read existingImage
+  do
+    existingImages+=("$existingImage")
+  done <<< "$(queryDb "select path from $_dbTable")"
 
+  echo "${#existingImages[@]} existing images indexed."
+
+  exit 69
 
   while read wallpaperFile
   do
