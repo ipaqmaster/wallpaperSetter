@@ -9,6 +9,15 @@ _configFile="$_scriptRoot/$(basename $0).conf"
 _dbFile="$_scriptRoot/$(basename $0).db"
 _dbTable="$(basename $0)"
 
+
+declare -A _dbStructure
+
+_dbStructure[path]='varchar(255)'
+_dbStructure[res]='varchar(255)'
+_dbStructure[profile]='varchar(6)'
+_dbStructure[checksum]='varchar(40)'
+_dbUnique='UNIQUE(path)'
+
 #     _                
 #  __| | ___ _ __  ___ 
 # / _` |/ _ \ '_ \/ __|
@@ -106,16 +115,37 @@ function showDb {
 
 function genDb {
 
-  if [ $REGEN ]
-  then
-    log "Regenerating database. One moment.."
-  else
-    log "Generating database. One moment.."
-  fi
+  log "Working on database. One moment.."
 
-    # Create our table (And file automatically) if not present and populate it with our data.
-  queryDb "CREATE TABLE if not exists $_dbTable ( path varchar(255), res varchar(255), profile varchar(6), checksum varchar(40), UNIQUE(path) );"
+for row in ${!_dbStructure[@]}
+  do
+    tableQuery+=$(echo -n "$row ${_dbStructure[$row]}, ")
+  done
+  tableQuery+="$_dbUnique"
+
+    # Always start by trying to create the table in case missing or brand new db.
+  queryDb "CREATE TABLE if not exists $_dbTable ( $tableQuery );"
   touch "$_dbFile"
+
+    # Get all existing db column info.
+  declare -A existingTables
+  while read columnInfo 
+  do
+    columnName=$(cut -d'|' -f2 <<< $columnInfo)
+    columnType=$(cut -d'|' -f3 <<< $columnInfo)
+    existingTables[$columnName]="$columnType"
+  done <<< $(queryDb "PRAGMA table_info($_dbTable);")
+
+   # Compare existing db columns with what we expect and add them if missing.
+   # Sort of like a rolling db upgrade with new versions of this script.
+  for expectedColumn in ${!_dbStructure[@]}
+  do
+    if [[ "${_dbStructure[$expectedColumn]}" != "${existingTables[$expectedColumn]}" ]] # Quick hack check if it's there plus the correct datatype.
+    then
+      log "Database missing the :$expectedColumn: column. Adding now for future reindexing."
+      queryDb "alter table $_dbTable add $expectedColumn ${_dbStructure[$expectedColumn]}"
+    fi 
+  done
 
     # Disable recursion if 'no' specified.
   set -o noglob
@@ -231,7 +261,7 @@ do
         SHOWDB="1"
     ;;
     -regendb|-regen)
-        REGEN="1"
+        FORCEREGEN="1"
     ;;
      -debug)
         DEBUG="1"
@@ -265,7 +295,7 @@ primaryRes="$(xrandr | grep \* | awk '{print $1}'|head -n1)"
 if [ ! -z $SHOWDB ]; then showDb ; fi
 
   # Regen db if requested. Do regular stale check otherwise.
-if [ ! -z $REGEN ]; then genDb ; else dbPrep ; fi
+if [ ! -z $FORCEREGEN ]; then genDb ; else dbPrep ; fi
 
 
   # Select x random images from the db based on active displays or a single span bg.
