@@ -87,7 +87,7 @@ if [ "$1" == 'recreate' ] ; then exit ; fi
       then
         eval $var #Set it
       else
-        echo "Cannot find var :$configOption: in $_configFile. Regenerating the config file for next run." ; readConfig recreate
+        log "Cannot find var :$configOption: in $_configFile. Regenerating the config file for next run." ; readConfig recreate
 	exit 1
       fi
   done
@@ -128,16 +128,27 @@ function genDb {
   fi
 
     # Find, identify dimensions and format findings as INSERT queries.
-  allWallpapers="$(find "${WPDirectory}" ${recursionFlags} -type f)"
-  allCount=$(wc -l <<< $allWallpapers)
+  foundWallpapers="$(find "${WPDirectory}" ${recursionFlags} -type f)"
+  foundWallpapersCount=$(wc -l <<< $foundWallpapers)
 
-  echo -e "Indexing now. $allCount images found."
+    # Get array of all existing wallpapers
+  while read wallpaper
+  do indexedWallpapersArray+=("$wallpaper")
+  done <<< "$(queryDb "select path from wallpaperSetter")"
 
+    # Get a count of that array for printing purposes.
+  indexedWallpapersCount=${#indexedWallpapersArray[@]}
+
+  indexedWallpapersLeftover=("${indexedWallpapersArray[@]}")
+
+  log "Indexing now. $foundWallpapersCount images detected."
+  if [ 1 != $indexedWallpapersCount ]; then log "\t$indexedWallpapersCount already indexed." ; fi
 
   while read wallpaperFile
   do
       unset checksum ; checksum=$(sha1sum "$wallpaperFile" | awk '{ print $1 }')
 
+      indexedWallpapersLeftover=( "${indexedWallpapersLeftover[@]/${wallpaperFile}}" )
       # Check if we've already scanned this one before building an insert query for it.
     pathCheckresult="$(queryDb "select path from $_dbTable where path = '$wallpaperFile';" | wc -l)"
     if [ $pathCheckresult -gt 0 ]
@@ -155,13 +166,25 @@ function genDb {
     wallpaperDims="$(identify -format '%wx%h' "$wallpaperFile")"
     colorProfile="$(convert "$wallpaperFile" -resize 1x1\! -resize 1x1 txt:-|grep -Eo '\#([0-9]|[A-F]){6}')"
     sql+=("insert or replace into $_dbTable values(\"$wallpaperFile\",\"$wallpaperDims\",\"$colorProfile\", \"$checksum\");")
-    done <<< $allWallpapers
+    done <<< $foundWallpapers
 
 
-  for line in "${sql[@]}"
+    # Add all new findings to the db
+  for line in "${sql[@]}"; do queryDb "$line" ; done
+
+    # Now use the indexedWallpapersLeftover array to determine if there's any indexed
+    # wallpapers which should be checked and removed from the DB if missing
+  while read remainingWallpaper 
   do
-    queryDb "$line"
-  done
+    if [ -z "$remainingWallpaper" ] ; then continue ;  fi
+    if [ ! -f "$remainingWallpaper" ]
+    then
+      log "Wallpaper missing but indexed:\t$remainingWallpaper"
+      log "Removing that wallpaper from our DB as it has been relocated or removed."
+      queryDb "delete from $_dbTable where path = '$remainingWallpaper'"
+    fi
+  done <<< ${indexedWallpapersLeftover[@]}
+
 }
 
 function dbPrep {
