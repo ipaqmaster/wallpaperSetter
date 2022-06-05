@@ -97,7 +97,7 @@ if [ "$1" == 'recreate' ] ; then exit ; fi
         eval $var #Set it
       else
         echo "Cannot find var :$configOption: in $_configFile. Regenerating the config file for next run." ; readConfig recreate
-	exit 1
+        exit 1
       fi
   done
 }
@@ -180,8 +180,6 @@ function genDb {
 
   echo "${#existingImages[@]} existing images indexed."
 
-  exit 69
-
   while read wallpaperFile
   do
       unset checksum ; checksum=$(sha1sum "$wallpaperFile" | awk '{ print $1 }')
@@ -241,7 +239,7 @@ function fetchRandomImages {
   then
     log "DEBUG: Not enough $searchRes results for these monitors. Falling back and accepting any resolution wallpaper."
     searchRes=$primaryRes
-    readarray -t queryResults <<< $(queryDb "select path from $_dbTable order by random() limit $totalMonitors;")
+    readarray -t queryResults <<< $(queryDb "select path from $_dbTable order by random() limit $totalMonitorCount;")
     if [ ${#queryResults[@]} -lt $imageFetchCount ]; then log "DEBUG: Couldn't find any enough images? Regenerating and exiting in panic" ; genDb ; exit 1; fi
   fi
 
@@ -252,6 +250,56 @@ function fetchRandomImages {
   done
   
   #echo ${queryResults[@]}
+}
+
+function setWallpaper {
+
+  if [[ "$windowManager" == "Xfwm4" ]]
+  then
+    log "DEBUG: xfce4 environment detected"
+    if [ "$searchRes" == "$combinedRes" ]
+    then
+	for i in $(seq 0 $((($totalMonitorCount - 1))))
+	do
+          xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor${monitorList[0]}/workspace0/image-style -s 6 # Spanning Screens mode
+        done
+          # Set a span wallpaper with xfconf if the right time
+        xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor${monitorList[0]}/workspace0/last-image" -s "${queryResults[0]}"
+    else
+        # Otherwise, set one for each monitor
+        for i in $(seq 0 $((($totalMonitorCount - 1))))
+        do
+	  log "DEBUG: Setting ${monitorList[$i]}"
+          if [[ "$bgmode" == "fill" ]]
+          then
+            xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor${monitorList[$i]}/workspace0/image-style -s 3 # Stretched
+          elif [[ "$bgmode" == "scale" ]]
+          then
+            xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor${monitorList[$i]}/workspace0/image-style -s 4 # Scale
+          fi
+
+          xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor${monitorList[$i]}/workspace0/last-image" -s "${queryResults[$i]}"
+        done
+    fi
+  else
+
+    # Use feh if no other supported window manager detected.
+    log "DEBUG: No other supported environment detected, using feh."
+
+    if [ "$searchRes" == "$combinedRes" ]
+    then
+        fehArguments="--bg-tile \"$queryResults\"" # --bg-tile works for multi-monitor wallpapers.
+    else
+      #fehArguments=$(while read chosenImage ; do echo -n "--bg-$bgmode" "\"$chosenImage\" " ;   done <<<"${queryResults[@]}")
+      fehArguments=$(for imageIndex in ${!queryResults[@]}; do echo -n "--bg-$bgmode" "\"${queryResults[$imageIndex]}\" "; done)
+    fi
+    
+      # Log what's been picked for later checking.
+    log "$(date) Command: feh $fehArguments"
+
+    eval feh $fehArguments 2>&1|head -n1
+  fi
+
 }
 
 function help {
@@ -302,9 +350,14 @@ done
 
 readConfig "WPDirectory WPRecursion bgmode tryNativeRes trySpanWallpapers dbStaleTime spanWallpaperPercentChance"
 
+  # Get current window manager
+windowManager="$(wmctrl -m | grep -oP '(?<=Name: )(.*)')"
+
   # Determine active display count.
-totalMonitors="$(xrandr --listactivemonitors | grep -oP '(?<=Monitors:\ )[0-9]+')"
-imageFetchCount="$totalMonitors"
+monitorList=($(xrandr --listactivemonitors | grep -oP '(?<=\ \ ).*' | tr '\n' ' '))
+totalMonitorCount="$(wc -w <<< ${monitorList[@]})"
+
+imageFetchCount="$totalMonitorCount"
 combinedRes="$(xrandr |grep -Po '(?<=current\ )[0-9]+ x [0-9]+' | tr -d ' ')"
 primaryRes="$(xrandr | grep \* | awk '{print $1}'|head -n1)"
 
@@ -337,22 +390,8 @@ then
 fi
 
 fetchRandomImages
-
 log "DEBUG: queryResults = ${queryResults[@]}"
 
-  # Build arguments for 'feh'. Supports whitespace filenames.
-if [ "$searchRes" == "$combinedRes" ]
-then
-  fehArguments="--bg-tile \"$queryResults\"" # --bg-tile works for multi-monitor wallpapers.
-else
-  #fehArguments=$(while read chosenImage ; do echo -n "--bg-$bgmode" "\"$chosenImage\" " ;   done <<<"${queryResults[@]}")
-  fehArguments=$(for imageIndex in ${!queryResults[@]}; do echo -n "--bg-$bgmode" "\"${queryResults[$imageIndex]}\" "; done)
-fi
 
-  # Log what's been picked for later checking.
-log "$(date) Command: feh $fehArguments"
-
-
-  #Eval the final command.
-eval feh $fehArguments 2>&1|head -n1
+  setWallpaper
 exit $?
