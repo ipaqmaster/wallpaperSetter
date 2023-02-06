@@ -199,7 +199,7 @@ function genDb {
     if [ ! -z "$DEBUG" ] ; then (((index++))) ; echo $index ; fi
 
     wallpaperDims="$(identify -format '%wx%h' "$wallpaperFile")"
-    colorProfile="$(convert "$wallpaperFile" -resize 1x1\! -resize 1x1 txt:-|grep -Eo '\#([0-9]|[A-F]){6}')"
+    colorProfile="$(convert "$wallpaperFile" -resize 1x1\! -resize 1x1 txt:-|grep -Eo '#([0-9]|[A-F]){6}')"
     sql+=("insert or replace into $_dbTable values(\"$wallpaperFile\",\"$wallpaperDims\",\"$colorProfile\", \"$checksum\");")
     done <<< $allWallpapers
 
