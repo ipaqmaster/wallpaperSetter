@@ -64,7 +64,6 @@ if [ ! -f $_configFile ] || [ "$1" == 'recreate' ]
 then
   cat > $_configFile << EOF
 # This conf can be deleted at any time for a regenerated default copy.
-}
 
 WPDirectory="\$HOME/Wallpapers/"
 WPRecursion="no"
