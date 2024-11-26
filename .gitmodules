@@ -1,0 +1,3 @@
+[submodule "jModules"]
+	path = jModules
+	url = git@github.com:ipaqmaster/jModules.git
