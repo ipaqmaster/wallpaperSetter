@@ -1,2 +1,4 @@
 #Generates these on it's own
 wallpaperSetter.*
+*.sqlite
+config.json

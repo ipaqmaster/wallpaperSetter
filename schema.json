@@ -1,0 +1,27 @@
+{
+  "wallpapers": {
+    "columns": {
+      "path": {
+        "type": "varchar(255) primary key"
+      },
+      "width": {
+        "type": "int(5)"
+      },
+      "height": {
+        "type": "int(5)"
+      },
+      "profile": {
+        "type": "varchar(6)"
+      },
+      "hash": {
+        "type": "varchar(40)"
+      },
+      "added": {
+        "type": "datetime"
+      },
+      "seen": {
+        "type": "datetime"
+      }
+    }
+  }
+}

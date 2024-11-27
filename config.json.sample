@@ -1,0 +1,9 @@
+{
+  "bgmode": "fill",
+  "dbStaleSeconds": 86400,
+  "directory": "$HOME/Wallpapers",
+  "recursion": "no",
+  "spanChancePercent": 10,
+  "tryNative": true,
+  "trySpan": true
+}

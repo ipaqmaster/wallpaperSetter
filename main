@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+from jModules.Database       import Database
+from modules.WallpaperSetter import WallpaperSetter
+import argparse
+import json
+import os
+
+_scriptRoot = os.path.dirname(os.path.realpath(__file__))
+_scriptName = _scriptRoot.split('/')[-1]
+_namespace  = _scriptName
+
+dbFile     = "%s/db.sqlite"        % _scriptRoot
+schemaFile = "%s/schema.json"      % _scriptRoot
+configFile = "%s/config.json"      % _scriptRoot
+
+def main():
+
+    parser = argparse.ArgumentParser(description="A script for changing my wallpaper.")
+
+    parser.add_argument(
+            '--debug',
+            action='store_true',
+            default=False,
+            help='Enable debug logging'
+            )
+
+    args = parser.parse_args()
+
+    with open(configFile, 'r') as file:
+        config = json.loads(file.read())
+
+
+
+    database = Database(databaseFile=dbFile, schema=schemaFile, debug=args.debug)
+    wpSetter = WallpaperSetter(config=config, database=database)
+
+    ## Testing
+    #columns = ["path", "res", "profile", "checksum", "added", "seen"]
+    #values  = ["/tmp/test's \"here22\".png",
+    #           "1920x1080",
+    #           "AABBCC",
+    #           "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    #           "Wed 27 Nov 2024 11:28:50 AEDT",
+    #           "Wed 25 Nov 2024 13:17:55 AEDT"]
+    #database.insert(columns=columns, values=values)
+
+
+if __name__ == "__main__":
+    main()
+
