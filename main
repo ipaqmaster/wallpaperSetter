@@ -32,7 +32,7 @@ def main():
 
 
     database = Database(databaseFile=dbFile, schema=schemaFile, debug=args.debug)
-    wpSetter = WallpaperSetter(config=config, database=database)
+    wpSetter = WallpaperSetter(config=config, database=database, debug=args.debug)
 
     ## Testing
     #columns = ["path", "res", "profile", "checksum", "added", "seen"]
