@@ -257,21 +257,28 @@ class WallpaperSetter:
         if self.DESKTOP_SESSION == 'xfce':
             print('Processing XFCE...')
 
-            count = 0
-                #for range()in len(self.monitors) -1:
-            # Configure spanning correctly or assign an image to each monitor
+            # Configure spanning mode and set a wide wallpaper
             if span:
                 for monitor in self.monitors:
                     print(monitor)
                     subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/image-style" % monitor['port'], "-s", "6"])
-                    count += 1
 
                 subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/last-image" % self.monitors[0]['port'], "-s", results['path']])
+
+            # Otherwise configure each display and set a wallpaper for each of them.
+            else:
+                for monitor,result in zip(self.monitors, results):
+                    if mode   == 'fill':
+                        subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/image-style" % monitor['port'], "-s", "3"]) # 3 = Stretched
+                    elif mode == 'scale':
+                        subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/image-style" % monitor['port'], "-s", "4"]) # 4 = Stretched
+
+                    # Set a wallpaper for this monitor
+                    subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/last-image" % monitor['port'], "-s", result['path']])
 
 
 
     def run(self, mode, span=False):
-        span=True
         """Try to get then set one or more backgrounds"""
 
         results = self.get(span=span)
