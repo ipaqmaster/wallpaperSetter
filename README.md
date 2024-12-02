@@ -1,36 +1,31 @@
 # About
 
-A wallpaper script written in Bash.
+A wallpaper script for my workstations. It reads a configuration file of preferences and indexes a wallpaper directory for content to display. It may even attempt to display some.
 
-Reads a config file generated on first run.
-Searches for wallpapers in a directory and makes an sqlite3 database to keep track of their paths and resolution. Updates if over a day old on next run or when manually requested via argument. (Or if it discovers a wallpaper went missing)
+Spanning wallpapers are supported where one matches the total resolution of the graphical environment. Otherwise it sets a wallpaper for each display's native resolution. If none can be found it will do its best to pick something.
 
-Made for the Cinnamon desktop environment though I'm sure most window managers would be fine.
+Wallpapers are tracked in a sqlite3 database file with their details. By default it attempts to re-scan once a day or manually if requested.
+
+The `original_bash` and `original_dev` branches contain the original shell script for this project. It has since been re-written as Python in late 2024 as I wanted to tidy things up.
 
 # Usage
 
-`./wallpaperSetter`
+`./main`
 
-   Runs. Tries to pick native resolution wallpapers or a span wallpaper for all monitors by default. If no match it tries all.
-
-`-help`
+   Scans if needed and sets one or more wallpapers if possible.
+   
+`--help`
 
    Spills the beans
 
-`-regendb/-regen`
+`--regen`
 
-   Regenerates the image database for your configured wallpaper dir.
+   Runs maintenance
 
-`-debug`
+`--debug`
 
-   Makes the script more talkative.
+   Talks more
 
 
 ## Dependencies
-* awk     (gawk)
-* date    (coreutils)
-* dirname (coreutils)
-* feh
-* imagemagick
-* logger  (util-linux)
-* xrandr  (xorg-xrandr)
+* python-magic
