@@ -4,6 +4,7 @@ from modules.WallpaperSetter import WallpaperSetter
 import argparse
 import json
 import os
+import random
 
 _scriptRoot = os.path.dirname(os.path.realpath(__file__))
 _scriptName = _scriptRoot.split('/')[-1]
@@ -44,6 +45,18 @@ def main():
     #           "Wed 25 Nov 2024 13:17:55 AEDT"]
     #database.insert(columns=columns, values=values)
 
+    # Check whether or not we should use a spanning image 
+    # Roll for whether we should try a single spanning image, or one image per display
+
+    roll = random.randint(1, 100)
+    if roll <= config['spanChancePercent']:
+        span = True
+        if args.debug:
+            print("Successfully rolled for a spanning image.")
+    else:
+        span = False
+
+    wpSetter.run(mode=config['bgmode'], span=span)
 
 if __name__ == "__main__":
     main()

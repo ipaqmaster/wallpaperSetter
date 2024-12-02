@@ -1,47 +1,83 @@
 #!/usr/bin/env python
-from PIL      import Image
-from dateutil import parser
+from PIL        import Image
+from Xlib       import X, display
+from Xlib.ext   import randr
+from dateutil   import parser
 import PIL
+import Xlib.display
 import datetime
 import hashlib
 import magic
 import os
 import re
+import subprocess
+
 
 class WallpaperSetter:
     def __init__(self, config, database, debug=False):
-  
+
         self.config    = config
         self.database  = database
         self.debug     = debug
         self.directory = re.sub(r'(?<!\\)\$[A-Za-z_][A-Za-z0-9_]*', '', os.path.expandvars(config['directory']))
-  
+
+        self.display       = Xlib.display.Display()
+        self.screenIndex   = self.display.get_default_screen()
+        self.defaultScreen = self.display.screen(self.screenIndex)
+        self.root          = self.defaultScreen.root
+
+        self.dimensions    = (self.defaultScreen.width_in_pixels,self.defaultScreen.height_in_pixels)
+
+        if self.debug:
+            print("Total display dimensions: %sx%s" % (dimensions))
+
+        self.monitors = []
+        # Enumerate monitors
+        for monitor in self.root.xrandr_get_monitors().monitors:
+            thisMonitor = {}
+            thisMonitor['port']       = self.display.get_atom_name(monitor.name)
+            thisMonitor['height']     = monitor.height_in_pixels
+            thisMonitor['width']      = monitor.width_in_pixels
+            thisMonitor['dimensions'] = "%sx%s" % (thisMonitor['height'], thisMonitor['width'])
+            thisMonitor['offsetX']    = monitor.x
+            thisMonitor['offsetY']    = monitor.y
+
+            self.monitors.append(thisMonitor)
+
+        if self.debug:
+            from pprint import pprint
+            pprint(monitors)
+
+        # Try to determine our graphical environment through environment variables.
+        self.DESKTOP_SESSION = os.environ['DESKTOP_SESSION']
+
         # Check if we should update the database
-  
-  
+
+
         if self.dbIsStale():
             print('db is stale.')
             self.updateDb()
-  
-  
+
+
+
     def dbIsStale(self):
         if self.debug: print("Checking if the db is stale")
         result = self.database.execFetchone('select seen from wallpapers order by seen desc limit 1')
-  
+
         if not result:
             return True
         else:
             result = result[0]
-  
+
         latestUpdate   = parser.parse(result)
         now            = datetime.datetime.now()
         differenceUnix = now.timestamp() - latestUpdate.timestamp()
-  
+
         if differenceUnix > self.config['dbStaleSeconds']:
             return True
         else:
             return False
-  
+
 
     def loadImage(self, filePath):
         self.img       = None
@@ -58,7 +94,7 @@ class WallpaperSetter:
                 return False
 
             return True
-  
+
     def updateImageMime(self, filePath):
         mime = magic.from_file(filePath, mime=True)
         if mime:
@@ -82,7 +118,7 @@ class WallpaperSetter:
             print("Unable to process: %s" % filePath)
             return(False)
 
-  
+
     def updateImageHash(self, filePath):
         with open(filePath, "rb") as file:
             hash = hashlib.file_digest(file, "sha1").hexdigest()
@@ -109,11 +145,11 @@ class WallpaperSetter:
 
         if thumb.mode != 'RGB':
             thumb = thumb.convert('RGB')
-    
+
         r_total = 0
         g_total = 0
         b_total = 0
-    
+
         count = 0
         for x in range(0, width):
             for y in range(0, height):
@@ -124,7 +160,7 @@ class WallpaperSetter:
                 g_total += g
                 b_total += b
                 count += 1
-    
+
         profile = "%02x%02x%02x" % (int(r_total/count), int(g_total/count), int(b_total/count))
 
         result = self.database.query(columns=["profile"],
@@ -140,10 +176,10 @@ class WallpaperSetter:
     def updateDb(self):
         print("Refreshing the database.")
         print("Scanning: %s" % self.directory)
-  
+
         now    = datetime.datetime.now()
         nowStr = str(now)
-  
+
         for root, dirs, files in os.walk(self.directory):
             for filename in files:
                 self.loadImage(None) # Reset
@@ -186,10 +222,58 @@ class WallpaperSetter:
                             print("\tHashing...")
 
                         self.updateImageHash(filePath)
-  
+
                     if not result['profile']:
                         if self.debug:
                             print("\tProfiling...")
 
                         self.updateImageProfile(filePath)
 
+
+    def get(self, span=False):
+        result = None
+
+        # Try looking for a single image which matches the dimensions of the entire X-screen (all monitors)
+        if span:
+            query = "select * from wallpapers where width = '%s' and height = '%s' ORDER BY RANDOM() limit 1" % self.dimensions
+            result = self.database.execFetchoneDict(query)
+
+        # Otherwise, return an image for each display
+        else:
+            result = []
+            for monitor in self.monitors:
+                query = "select * from wallpapers where width = '%s' and height = '%s' ORDER BY RANDOM() limit 1" % (monitor['width'], monitor['height'])
+                result.append(self.database.execFetchoneDict(query))
+
+
+        # Return our findings, if any.
+        if not result:
+            return False
+        else:
+            return result
+
+    def set(self, results, mode='scale', span=False):
+
+        if self.DESKTOP_SESSION == 'xfce':
+            print('Processing XFCE...')
+
+            count = 0
+                #for range()in len(self.monitors) -1:
+            # Configure spanning correctly or assign an image to each monitor
+            if span:
+                for monitor in self.monitors:
+                    print(monitor)
+                    subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/image-style" % monitor['port'], "-s", "6"])
+                    count += 1
+
+                subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/last-image" % self.monitors[0]['port'], "-s", results['path']])
+
+
+
+    def run(self, mode, span=False):
+        span=True
+        """Try to get then set one or more backgrounds"""
+
+        results = self.get(span=span)
+
+        self.set(results, mode=mode, span=span)
