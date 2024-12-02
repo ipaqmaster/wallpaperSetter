@@ -29,7 +29,7 @@ class WallpaperSetter:
         self.dimensions    = (self.defaultScreen.width_in_pixels,self.defaultScreen.height_in_pixels)
 
         if self.debug:
-            print("Total display dimensions: %sx%s" % (dimensions))
+            print("Total display dimensions: %sx%s" % (self.dimensions))
 
         self.monitors = []
         # Enumerate monitors
@@ -46,7 +46,7 @@ class WallpaperSetter:
 
         if self.debug:
             from pprint import pprint
-            pprint(monitors)
+            pprint(self.monitors)
 
         # Try to determine our graphical environment through environment variables.
         self.DESKTOP_SESSION = os.environ['DESKTOP_SESSION']
