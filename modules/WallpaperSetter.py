@@ -20,6 +20,7 @@ class WallpaperSetter:
         self.database  = database
         self.debug     = debug
         self.directory = re.sub(r'(?<!\\)\$[A-Za-z_][A-Za-z0-9_]*', '', os.path.expandvars(config['directory']))
+        self.dbUpdated = False
 
         self.display       = Xlib.display.Display()
         self.screenIndex   = self.display.get_default_screen()
@@ -178,6 +179,12 @@ class WallpaperSetter:
         return(self.database.execFetchoneDict("select * from wallpapers where path = '%s'" % filePath))
 
     def updateDb(self):
+        # Avoid doing this more than once per run.
+        if self.dbUpdated:
+            return(self.dbUpdated)
+
+        self.dbUpdated = True
+
         print("Refreshing the database.")
         print("Scanning: %s" % self.directory)
 

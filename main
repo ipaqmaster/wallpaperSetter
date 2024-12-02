@@ -25,6 +25,13 @@ def main():
             help='Enable debug logging'
             )
 
+    parser.add_argument(
+            '--regen',
+            action='store_true',
+            default=False,
+            help='Force database maintenance.'
+            )
+
     args = parser.parse_args()
 
     try:
@@ -38,6 +45,9 @@ def main():
 
     database = Database(databaseFile=dbFile, schema=schemaFile, debug=args.debug)
     wpSetter = WallpaperSetter(config=config, database=database, debug=args.debug)
+
+    if args.regen:
+        wpSetter.updateDb()
 
     ## Testing
     #columns = ["path", "res", "profile", "checksum", "added", "seen"]
