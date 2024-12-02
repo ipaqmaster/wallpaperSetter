@@ -27,8 +27,12 @@ def main():
 
     args = parser.parse_args()
 
-    with open(configFile, 'r') as file:
-        config = json.loads(file.read())
+    try:
+       with open(configFile, 'r') as file:
+           config = json.loads(file.read())
+    except FileNotFoundError:
+        print('Please copy %s.sample to %s to get started.' % (configFile, configFile))
+        exit(1)
 
 
 
