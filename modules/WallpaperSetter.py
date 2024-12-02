@@ -49,7 +49,11 @@ class WallpaperSetter:
             pprint(self.monitors)
 
         # Try to determine our graphical environment through environment variables.
-        self.DESKTOP_SESSION = os.environ['DESKTOP_SESSION']
+        if 'DESKTOP_SESSION' in os.environ:
+            self.DESKTOP_SESSION = os.environ['DESKTOP_SESSION']
+        else:
+            print('DESKTOP_SESSION variable not set. Do not expect to be able to set wallpapers without this hint.')
+            self.DESKTOP_SESSION = None
 
         # Check if we should update the database
 
