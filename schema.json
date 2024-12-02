@@ -4,6 +4,9 @@
       "path": {
         "type": "varchar(255) primary key"
       },
+      "mime": {
+        "type": "varchar(255)"
+      },
       "width": {
         "type": "int(5)"
       },
