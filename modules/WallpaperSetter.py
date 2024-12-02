@@ -39,7 +39,7 @@ class WallpaperSetter:
             thisMonitor['port']       = self.display.get_atom_name(monitor.name)
             thisMonitor['height']     = monitor.height_in_pixels
             thisMonitor['width']      = monitor.width_in_pixels
-            thisMonitor['dimensions'] = "%sx%s" % (thisMonitor['height'], thisMonitor['width'])
+            thisMonitor['dimensions'] = "%sx%s" % (thisMonitor['width'], thisMonitor['height'])
             thisMonitor['offsetX']    = monitor.x
             thisMonitor['offsetY']    = monitor.y
 
