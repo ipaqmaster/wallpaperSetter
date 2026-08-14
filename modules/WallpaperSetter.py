@@ -19,6 +19,7 @@ class WallpaperSetter:
         self.config    = config
         self.database  = database
         self.debug     = debug
+
         self.directories = []
         for directory in config['directories']:
             directory_expanded = re.sub(r'(?<!\\)\$[A-Za-z_][A-Za-z0-9_]*', '', os.path.expandvars(directory))
@@ -71,7 +72,9 @@ class WallpaperSetter:
 
 
     def dbIsStale(self):
-        if self.debug: print("Checking if the db is stale")
+        if self.debug:
+            print("Checking if the db is stale")
+
         result = self.database.execFetchone('select seen from wallpapers order by seen desc limit 1')
 
         if not result:
@@ -247,7 +250,7 @@ class WallpaperSetter:
                             self.updateImageProfile(filePath)
 
 
-    def get(self, span=False, trylargerThanNativeRes=False):
+    def get(self, mode, span=False, trylargerThanNativeRes=False):
         result = None
 
         # Try looking for a single image which matches the dimensions of the entire X-screen (all monitors)
@@ -259,11 +262,21 @@ class WallpaperSetter:
         else:
             result = []
             for monitor in self.monitors:
-                if not trylargerThanNativeRes:
-                    query = "select * from wallpapers where width = '%s' and height = '%s' ORDER BY RANDOM() limit 1" % (monitor['width'], monitor['height'])
+                if trylargerThanNativeRes:
+                    search_operator = '>='
                 else:
-                    query = "select * from wallpapers where width >= '%s' and height >= '%s' ORDER BY RANDOM() limit 1" % (monitor['width'], monitor['height'])
-                result.append(self.database.execFetchoneDict(query))
+                    search_operator = '='
+
+                query = "select * from wallpapers where width %s '%s' and height %s '%s' ORDER BY RANDOM() limit 1" % (search_operator, monitor['width'], search_operator, monitor['height'])
+
+                query_result = self.database.execFetchoneDict(query)
+                query_result['mode'] = mode
+
+                if trylargerThanNativeRes:
+                    if query_result['width'] > monitor['width'] or query_result['height'] > monitor['height']:
+                        query_result['mode'] = 'zoomed'
+
+                result.append(query_result)
 
 
         # Return our findings, if any.
@@ -280,7 +293,9 @@ class WallpaperSetter:
             # Configure spanning mode and set a wide wallpaper
             if span:
                 for monitor in self.monitors:
-                    print(monitor)
+                    if self.debug:
+                        print(monitor)
+
                     subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/image-style" % monitor['port'], "-s", "6"])
 
                 subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/last-image" % self.monitors[0]['port'], "-s", results['path']])
@@ -288,12 +303,19 @@ class WallpaperSetter:
             # Otherwise configure each display and set a wallpaper for each of them.
             else:
                 for monitor,result in zip(self.monitors, results):
-                    if mode   == 'fill':
-                        subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/image-style" % monitor['port'], "-s", "3"]) # 3 = Stretched
-                    elif mode == 'scale':
-                        subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/image-style" % monitor['port'], "-s", "4"]) # 4 = Stretched
+                    # 0=None, 1=Centered, 2=Tiled, 3=Stretched, 4=Scaled, 5=Zoomed, 6=Spanning Screens
+                    mode = result['mode']
 
-                    # Set a wallpaper for this monitor
+                    if mode   == 'fill': # 3=Stretched
+                        modeInt = 3
+                    elif mode == 'scale': # 4=Scaled
+                        modeInt = 4
+                    elif mode == 'zoomed': # 5=Zoomed # For above native res
+                        modeInt = 5
+
+                    # Set the mode
+                    subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/image-style" % monitor['port'], "-s", "%s" % modeInt])
+                    # Set the wallpaper
                     subprocess.check_call(["xfconf-query", "-c", "xfce4-desktop", "-p", "/backdrop/screen0/monitor%s/workspace0/last-image" % monitor['port'], "-s", result['path']])
 
 
@@ -301,6 +323,10 @@ class WallpaperSetter:
     def run(self, mode, span=False, trylargerThanNativeRes=False):
         """Try to get then set one or more backgrounds"""
 
-        results = self.get(span=span, trylargerThanNativeRes=trylargerThanNativeRes)
+        results = self.get(span=span, trylargerThanNativeRes=trylargerThanNativeRes, mode=mode)
 
-        self.set(results, mode=mode, span=span)
+        if self.debug:
+            from pprint import pprint
+            pprint(results)
+
+        self.set(results, span=span) # Mode gets embedded into results
