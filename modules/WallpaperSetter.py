@@ -19,7 +19,12 @@ class WallpaperSetter:
         self.config    = config
         self.database  = database
         self.debug     = debug
-        self.directory = re.sub(r'(?<!\\)\$[A-Za-z_][A-Za-z0-9_]*', '', os.path.expandvars(config['directory']))
+        self.directories = []
+        for directory in config['directories']:
+            directory_expanded = re.sub(r'(?<!\\)\$[A-Za-z_][A-Za-z0-9_]*', '', os.path.expandvars(directory))
+            if os.path.isdir(directory_expanded):
+                self.directories.append(directory_expanded)
+
         self.dbUpdated = False
 
         self.display       = Xlib.display.Display()
@@ -186,62 +191,63 @@ class WallpaperSetter:
         self.dbUpdated = True
 
         print("Refreshing the database.")
-        print("Scanning: %s" % self.directory)
+        for directory in self.directories:
+            print("Scanning: %s" % directory)
 
-        now    = datetime.datetime.now()
-        nowStr = str(now)
+            now    = datetime.datetime.now()
+            nowStr = str(now)
 
-        for root, dirs, files in os.walk(self.directory):
-            for filename in files:
-                self.loadImage(None) # Reset
-                filePath = os.path.join(root, filename)
-                if 'disabled' in filePath:
-                    continue
-                else:
-                    result = self.getImageRow(filePath)
-                    if not result: # Add the image path to the database
-                        self.database.query(columns=["path", "added", "seen"],
-                                             values=[filePath, nowStr, nowStr])
+            for root, dirs, files in os.walk(directory):
+                for filename in files:
+                    self.loadImage(None) # Reset
+                    filePath = os.path.join(root, filename)
+                    if 'disabled' in filePath:
+                        continue
+                    else:
                         result = self.getImageRow(filePath)
+                        if not result: # Add the image path to the database
+                            self.database.query(columns=["path", "added", "seen"],
+                                                 values=[filePath, nowStr, nowStr])
+                            result = self.getImageRow(filePath)
 
-                    # Update the last seen value of this file
-                    self.database.query(columns=["seen"],
-                                         values=[nowStr],
-                                          where=[('path', '=', filePath)],
-                                           mode='update')
+                        # Update the last seen value of this file
+                        self.database.query(columns=["seen"],
+                                             values=[nowStr],
+                                              where=[('path', '=', filePath)],
+                                               mode='update')
 
-                    if self.debug:
-                        for key in result.keys():
-                            if result[key] is None:
-                                print(filePath)
-                                break
-
-                    if not result['mime']:
                         if self.debug:
-                            print("\tGetting mime type...")
+                            for key in result.keys():
+                                if result[key] is None:
+                                    print(filePath)
+                                    break
 
-                        self.updateImageMime(filePath)
+                        if not result['mime']:
+                            if self.debug:
+                                print("\tGetting mime type...")
 
-                    if not result['width'] or not result['height']:
-                        if self.debug:
-                            print("\tGetting dimensions...")
+                            self.updateImageMime(filePath)
 
-                        self.updateImageResolution(filePath)
+                        if not result['width'] or not result['height']:
+                            if self.debug:
+                                print("\tGetting dimensions...")
 
-                    if not result['hash']:
-                        if self.debug:
-                            print("\tHashing...")
+                            self.updateImageResolution(filePath)
 
-                        self.updateImageHash(filePath)
+                        if not result['hash']:
+                            if self.debug:
+                                print("\tHashing...")
 
-                    if not result['profile']:
-                        if self.debug:
-                            print("\tProfiling...")
+                            self.updateImageHash(filePath)
 
-                        self.updateImageProfile(filePath)
+                        if not result['profile']:
+                            if self.debug:
+                                print("\tProfiling...")
+
+                            self.updateImageProfile(filePath)
 
 
-    def get(self, span=False):
+    def get(self, span=False, trylargerThanNativeRes=False):
         result = None
 
         # Try looking for a single image which matches the dimensions of the entire X-screen (all monitors)
