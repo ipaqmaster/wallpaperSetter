@@ -259,7 +259,10 @@ class WallpaperSetter:
         else:
             result = []
             for monitor in self.monitors:
-                query = "select * from wallpapers where width = '%s' and height = '%s' ORDER BY RANDOM() limit 1" % (monitor['width'], monitor['height'])
+                if not trylargerThanNativeRes:
+                    query = "select * from wallpapers where width = '%s' and height = '%s' ORDER BY RANDOM() limit 1" % (monitor['width'], monitor['height'])
+                else:
+                    query = "select * from wallpapers where width >= '%s' and height >= '%s' ORDER BY RANDOM() limit 1" % (monitor['width'], monitor['height'])
                 result.append(self.database.execFetchoneDict(query))
 
 
@@ -295,9 +298,9 @@ class WallpaperSetter:
 
 
 
-    def run(self, mode, span=False):
+    def run(self, mode, span=False, trylargerThanNativeRes=False):
         """Try to get then set one or more backgrounds"""
 
-        results = self.get(span=span)
+        results = self.get(span=span, trylargerThanNativeRes=trylargerThanNativeRes)
 
         self.set(results, mode=mode, span=span)

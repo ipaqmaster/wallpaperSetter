@@ -70,7 +70,7 @@ def main():
     else:
         span = False
 
-    wpSetter.run(mode=config['bgmode'], span=span)
+    wpSetter.run(mode=config['bgmode'], span=span, trylargerThanNativeRes=config['trylargerThanNativeRes'])
 
 if __name__ == "__main__":
     main()

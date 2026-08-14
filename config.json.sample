@@ -7,5 +7,6 @@
   "recursion": "no",
   "spanChancePercent": 10,
   "tryNative": true,
-  "trySpan": true
+  "trySpan": true,
+  "trylargerThanNativeRes": true
 }
